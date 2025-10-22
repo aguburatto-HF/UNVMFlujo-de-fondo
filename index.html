@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Calculadora de Flujo de Fondos</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- AÑADIMOS LA LIBRERÍA DE GRÁFICOS -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         body {
@@ -98,10 +100,7 @@
                         <label for="initialInvestment" class="input-label">Inversión Inicial</label>
                         <input type="number" id="initialInvestment" class="input-field" value="8000">
                     </div>
-                    <div class="input-group">
-                        <label for="expectedReturn" class="input-label">Rendimiento Anual Esperado %</label>
-                        <input type="number" id="expectedReturn" class="input-field" value="15">
-                    </div>
+                    <!-- CAMPO ELIMINADO: Rendimiento Anual Esperado % -->
                     <div class="input-group">
                         <label for="projectionPeriod" class="input-label">Periodo a Proyectar</label>
                         <div class="flex items-center space-x-2">
@@ -127,6 +126,33 @@
                         <input type="number" id="costoVariableUnidad" class="input-field" value="7.25">
                     </div>
                 </div>
+
+                <!-- NUEVA TARJETA DE INVERSIONES ADICIONALES -->
+                <div class="card">
+                    <h2 class="text-xl font-semibold mb-4 text-white">Inversiones Adicionales</h2>
+                    <div class="input-group">
+                        <label for="investment_y1" class="input-label">Inversión Año 1</label>
+                        <input type="number" id="investment_y1" class="input-field" value="0">
+                    </div>
+                    <div class="input-group">
+                        <label for="investment_y2" class="input-label">Inversión Año 2</label>
+                        <input type="number" id="investment_y2" class="input-field" value="0">
+                    </div>
+                    <div class="input-group">
+                        <label for="investment_y3" class="input-label">Inversión Año 3</label>
+                        <input type="number" id="investment_y3" class="input-field" value="0">
+                    </div>
+                    <div class="input-group">
+                        <label for="investment_y4" class="input-label">Inversión Año 4</label>
+                        <input type="number" id="investment_y4" class="input-field" value="0">
+                    </div>
+                    <div class="input-group">
+                        <label for="investment_y5" class="input-label">Inversión Año 5</label>
+                        <input type="number" id="investment_y5" class="input-field" value="0">
+                    </div>
+                </div>
+                <!-- FIN DE NUEVA TARJETA -->
+
                 <div class="card">
                      <h2 class="text-xl font-semibold mb-4 text-white">Ventas y Costos Unitarios</h2>
                      <div class="input-group">
@@ -136,7 +162,8 @@
                     <div class="input-group">
                         <label for="unidadesVendidas" class="input-label">Unidades Vendidas (Año 1)</label>
                         <input type="number" id="unidadesVendidas" class="input-field" value="23040" readonly>
-                         <p class="text-xs text-gray-500 mt-1">Se calcula para alcanzar el rendimiento esperado.</p>
+                         <!-- TEXTO ACTUALIZADO -->
+                         <p class="text-xs text-gray-500 mt-1">Unidades para que el VAN sea cero (punto de equilibrio).</p>
                     </div>
                     <div class="input-group">
                         <label for="crecimientoVentas" class="input-label">Crecimiento Anual en Ventas %</label>
@@ -146,8 +173,8 @@
                 <div class="card">
                     <h2 class="text-xl font-semibold mb-4 text-white">Impuestos y Depreciación</h2>
                     <div class="input-group">
-                        <label for="depreciation" class="input-label">Depreciación Anual</label>
-                        <input type="number" id="depreciation" class="input-field" value="30000"> <!-- 2500 * 12 -->
+                        <label for="depreciationRate" class="input-label">Tasa de Depreciación Anual %</label>
+                        <input type="number" id="depreciationRate" class="input-field" value="20" readonly>
                     </div>
                     <div class="input-group">
                         <label for="taxRate" class="input-label">Tasa de Impuestos %</label>
@@ -228,11 +255,40 @@
                         </table>
                     </div>
                 </div>
+
+                <!-- NUEVA TARJETA PARA EL GRÁFICO DE PUNTO DE EQUILIBRIO -->
+                <div class="card">
+                    <h2 class="text-xl font-semibold mb-4 text-white">Gráfico de Punto de Equilibrio Operativo</h2>
+                    <div class="mb-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div class="indicator-card">
+                             <div>
+                                <h3 class="indicator-title">Punto de Equilibrio (Unidades)</h3>
+                                <p id="breakEvenUnitsResult" class="indicator-value">-</p>
+                            </div>
+                            <p class="text-xs text-gray-400 mt-2 h-10">Unidades a vender para cubrir todos los costos operativos.</p>
+                        </div>
+                        <div class="indicator-card">
+                             <div>
+                                <h3 class="indicator-title">Punto de Equilibrio (Ingresos)</h3>
+                                <p id="breakEvenRevenueResult" class="indicator-value">-</p>
+                            </div>
+                            <p class="text-xs text-gray-400 mt-2 h-10">Ingresos necesarios para alcanzar el punto de equilibrio.</p>
+                        </div>
+                    </div>
+                    <div class="h-80 w-full">
+                        <canvas id="breakEvenChart"></canvas>
+                    </div>
+                </div>
+                <!-- FIN DE NUEVA TARJETA -->
+
             </main>
         </div>
     </div>
 
     <script>
+        // Variable global para la instancia del gráfico
+        let breakEvenChartInstance = null;
+
         document.addEventListener('DOMContentLoaded', () => {
             const paramsContainer = document.getElementById('parameters');
             
@@ -255,23 +311,39 @@
                 return van;
             };
 
-            const calculateTIR = (cashFlows, maxIterations = 100, tolerance = 1e-6) => {
-                let lowerBound = -0.99;
-                let upperBound = 1.0;
+            // --- FUNCIÓN DE TIR CORREGIDA ---
+            // Se amplió el rango de búsqueda para encontrar TIRs muy altas
+            const calculateTIR = (cashFlows, maxIterations = 1000, tolerance = 1e-6) => {
+                let lowerBound = -0.99; // -99%
+                let upperBound = 20.0; // 2000% (Aumentado desde 1.0)
                 let tir = 0;
+                
+                // Intenta encontrar un rango válido
+                for(let i = 0; i < 10; i++) {
+                    const vanLower = calculateVAN(cashFlows, lowerBound * 100);
+                    const vanUpper = calculateVAN(cashFlows, upperBound * 100);
+                    if (vanLower * vanUpper < 0) {
+                        break; // Rango válido encontrado
+                    }
+                    // Si no, expande el rango
+                    upperBound *= 2; 
+                }
+
                 for (let i = 0; i < maxIterations; i++) {
                     tir = (lowerBound + upperBound) / 2;
                     const van = calculateVAN(cashFlows, tir * 100);
+
                     if (Math.abs(van) < tolerance) {
-                        return tir * 100;
+                        return tir * 100; // Encontrado
                     }
+
                     if (calculateVAN(cashFlows, lowerBound * 100) * van < 0) {
                         upperBound = tir;
                     } else {
                         lowerBound = tir;
                     }
                 }
-                return NaN;
+                return NaN; // No se encontró
             };
 
             const calculatePayback = (cashFlows) => {
@@ -290,9 +362,150 @@
                 return 'Nunca';
             };
 
+            // --- NUEVA FUNCIÓN: Calcula flujos basado en unidades ---
+            const getCashFlowsForUnits = (baseUnits, allInputs) => {
+                const { 
+                    initialInvestment, projectionYears, precioVenta, crecimientoVentas, 
+                    costoVariableUnidad, annualFixedCosts, depreciation, taxRate, 
+                    otherInvestmentsMap, salvageValue 
+                } = allInputs;
+
+                const cashFlows = [-initialInvestment];
+                
+                for (let i = 1; i <= projectionYears; i++) {
+                    const currentUnits = baseUnits * Math.pow(1 + crecimientoVentas, i - 1);
+                    const currentRevenue = currentUnits * precioVenta;
+                    const currentVarCosts = currentUnits * costoVariableUnidad;
+                    
+                    const currentEBT = currentRevenue - currentVarCosts - annualFixedCosts - depreciation;
+                    const currentTax = currentEBT > 0 ? currentEBT * taxRate : 0;
+                    const currentNetIncome = currentEBT - currentTax;
+
+                    const otherInv = otherInvestmentsMap[i] || 0;
+                    
+                    let currentCashFlow = currentNetIncome + depreciation;
+                    if (i === projectionYears) {
+                        currentCashFlow += salvageValue;
+                    }
+                    currentCashFlow -= otherInv;
+                    cashFlows.push(currentCashFlow);
+                }
+                return cashFlows;
+            };
+
+            // --- NUEVA FUNCIÓN: Búsqueda de objetivo (Goal Seek) para VAN = 0 ---
+            const findBreakEvenUnits = (allInputs) => {
+                const { discountRate } = allInputs;
+                let lowerBoundUnits = 0;
+                let upperBoundUnits = 1000000; // Rango de búsqueda inicial
+                let testUnits = 0;
+                
+                // Comprueba si 0 unidades ya da VAN positivo (improbable con inversión)
+                const vanAtZero = calculateVAN(getCashFlowsForUnits(0, allInputs), discountRate);
+                if (vanAtZero > 0) return 0;
+
+                // Intenta encontrar un rango donde VAN cambie de signo
+                let vanAtUpper = calculateVAN(getCashFlowsForUnits(upperBoundUnits, allInputs), discountRate);
+                for(let i = 0; i < 10 && vanAtUpper < 0; i++) {
+                     upperBoundUnits *= 2; // Duplica el rango si el VAN sigue negativo
+                     vanAtUpper = calculateVAN(getCashFlowsForUnits(upperBoundUnits, allInputs), discountRate);
+                }
+
+                if (vanAtUpper < 0) return NaN; // No se pudo encontrar punto de equilibrio
+
+                // Búsqueda por bisección
+                for(let i = 0; i < 100; i++) { // Máx 100 iteraciones
+                    testUnits = (lowerBoundUnits + upperBoundUnits) / 2;
+                    const cashFlows = getCashFlowsForUnits(testUnits, allInputs);
+                    const van = calculateVAN(cashFlows, discountRate);
+
+                    if (Math.abs(van) < 1) { // Tolerancia de $1
+                        return testUnits;
+                    }
+
+                    if (van < 0) {
+                        lowerBoundUnits = testUnits;
+                    } else {
+                        upperBoundUnits = testUnits;
+                    }
+                }
+                return testUnits; // Devuelve la mejor aproximación
+            };
+
+            // --- NUEVA FUNCIÓN: Dibuja/actualiza el gráfico de punto de equilibrio ---
+            const updateBreakEvenChart = (chartLabels, revenueData, fixedCostsData, totalCostsData) => {
+                const ctx = document.getElementById('breakEvenChart').getContext('2d');
+                
+                // Destruir el gráfico anterior si existe (para evitar solapamientos)
+                if (breakEvenChartInstance) {
+                    breakEvenChartInstance.destroy();
+                }
+                
+                breakEvenChartInstance = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: chartLabels,
+                        datasets: [
+                            {
+                                label: 'Ingresos Totales',
+                                data: revenueData,
+                                borderColor: 'rgb(34, 197, 94)', // verde
+                                backgroundColor: 'rgba(34, 197, 94, 0.2)',
+                                fill: false,
+                                tension: 0.1
+                            },
+                            {
+                                label: 'Costos Totales',
+                                data: totalCostsData,
+                                borderColor: 'rgb(239, 68, 68)', // rojo
+                                backgroundColor: 'rgba(239, 68, 68, 0.2)',
+                                fill: false,
+                                tension: 0.1
+                            },
+                            {
+                                label: 'Costos Fijos',
+                                data: fixedCostsData,
+                                borderColor: 'rgb(107, 114, 128)', // gris
+                                backgroundColor: 'rgba(107, 114, 128, 0.2)',
+                                fill: false,
+                                tension: 0.1,
+                                borderDash: [5, 5] // Línea punteada
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            x: {
+                                title: { display: true, text: 'Unidades Vendidas', color: '#9ca3af' },
+                                ticks: { color: '#9ca3af' },
+                                grid: { color: '#374151' }
+                            },
+                            y: {
+                                title: { display: true, text: 'Monto ($)', color: '#9ca3af' },
+                                ticks: { color: '#9ca3af', callback: (value) => formatCurrency(value) },
+                                grid: { color: '#374151' }
+                            }
+                        },
+                        plugins: {
+                            legend: {
+                                labels: { color: '#e5e7eb' }
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: (context) => `${context.dataset.label}: ${formatCurrency(context.parsed.y)}`
+                                }
+                            }
+                        }
+                    }
+                });
+            };
+
+
             const calculateAndDisplay = () => {
                 const initialInvestment = parseFloat(document.getElementById('initialInvestment').value) || 0;
-                const expectedReturn = parseFloat(document.getElementById('expectedReturn').value) / 100 || 0;
+                // CAMPO ELIMINADO: expectedReturn
                 const projectionPeriod = parseInt(document.getElementById('projectionPeriod').value) || 5;
                 const projectionUnit = document.getElementById('projectionUnit').value;
                 const projectionYears = projectionUnit === 'años' ? projectionPeriod : Math.ceil(projectionPeriod / 12);
@@ -301,24 +514,94 @@
                 const costoVariableUnidad = parseFloat(document.getElementById('costoVariableUnidad').value) || 0;
                 const costosFijos = parseFloat(document.getElementById('costosFijos').value) || 0;
                 const costosFijosUnit = document.getElementById('costosFijosUnit').value;
-                const depreciation = parseFloat(document.getElementById('depreciation').value) || 0;
+                
+                // La depreciación ahora se calcula como un % de la inversión inicial
+                const depreciationRate = (parseFloat(document.getElementById('depreciationRate').value) || 0) / 100;
+                const depreciation = initialInvestment * depreciationRate; 
+
                 const taxRate = parseFloat(document.getElementById('taxRate').value) / 100 || 0;
                 const annualFixedCosts = costosFijosUnit === 'mensuales' ? costosFijos * 12 : costosFijos;
                 
-                const targetNetIncome = initialInvestment * expectedReturn;
-                let requiredUnits = 0;
-                const marginPerUnit = precioVenta - costoVariableUnidad;
-                if (1 - taxRate > 0 && marginPerUnit > 0) {
-                    const targetEBT = targetNetIncome / (1 - taxRate);
-                    requiredUnits = (targetEBT + annualFixedCosts + depreciation) / marginPerUnit;
-                }
-                const unidadesVendidasEl = document.getElementById('unidadesVendidas');
-                unidadesVendidasEl.value = requiredUnits.toFixed(0);
-                const unidadesVendidas = requiredUnits;
+                // Leer inversiones adicionales
+                const invY1 = parseFloat(document.getElementById('investment_y1').value) || 0;
+                const invY2 = parseFloat(document.getElementById('investment_y2').value) || 0;
+                const invY3 = parseFloat(document.getElementById('investment_y3').value) || 0;
+                const invY4 = parseFloat(document.getElementById('investment_y4').value) || 0;
+                const invY5 = parseFloat(document.getElementById('investment_y5').value) || 0;
+                const otherInvestmentsMap = { 1: invY1, 2: invY2, 3: invY3, 4: invY4, 5: invY5 };
 
+                // --- LÓGICA DE CÁLCULO DE UNIDADES MODIFICADA ---
                 const discountRate = 25; 
                 const salvageValue = 1000;
+
+                // 1. Empaquetar inputs para las funciones helper
+                const allInputs = {
+                    initialInvestment, projectionYears, precioVenta, crecimientoVentas,
+                    costoVariableUnidad, annualFixedCosts, depreciation, taxRate,
+                    otherInvestmentsMap, salvageValue, discountRate
+                };
                 
+                // 2. CALCULAR UNIDADES DE EQUILIBRIO FINANCIERO (VAN=0)
+                const breakEvenVANUnits = findBreakEvenUnits(allInputs);
+                const unidadesVendidasEl = document.getElementById('unidadesVendidas');
+                
+                if (isNaN(breakEvenVANUnits)) {
+                     unidadesVendidasEl.value = "N/A";
+                } else {
+                     unidadesVendidasEl.value = breakEvenVANUnits.toFixed(0);
+                }
+                
+                // 3. Usar las unidades de equilibrio para el cálculo final
+                const unidadesVendidas = breakEvenVANUnits; // Este es el PE Financiero
+                // --- FIN DE LÓGICA MODIFICADA ---
+                
+                
+                // --- CÁLCULO DE PUNTO DE EQUILIBRIO OPERATIVO (PARA EL GRÁFICO) ---
+                const contribucionMarginal = precioVenta - costoVariableUnidad;
+                let breakEvenUnits = 0;
+                let breakEvenRevenue = 0;
+                
+                if (contribucionMarginal > 0) {
+                    breakEvenUnits = annualFixedCosts / contribucionMarginal;
+                    breakEvenRevenue = breakEvenUnits * precioVenta;
+                }
+                
+                // Actualizar los indicadores del gráfico
+                const beUnitsEl = document.getElementById('breakEvenUnitsResult');
+                const beRevenueEl = document.getElementById('breakEvenRevenueResult');
+                
+                if (isFinite(breakEvenUnits) && breakEvenUnits > 0) {
+                    beUnitsEl.textContent = breakEvenUnits.toFixed(0);
+                    beRevenueEl.textContent = formatCurrency(breakEvenRevenue);
+                } else {
+                    beUnitsEl.textContent = 'N/A';
+                    beRevenueEl.textContent = 'N/A';
+                }
+
+                // Generar datos para el gráfico
+                const chartLabels = [];
+                const revenueData = [];
+                const fixedCostsData = [];
+                const totalCostsData = [];
+                // Usamos el doble de unidades del PE Operativo como rango, o las unidades del PE Financiero
+                const maxUnitsForChart = (isFinite(breakEvenUnits) && breakEvenUnits > 0) 
+                                            ? Math.ceil(breakEvenUnits * 2) 
+                                            : (isFinite(unidadesVendidas) ? unidadesVendidas * 1.5 : 20000);
+                const steps = 10;
+
+                for (let i = 0; i <= steps; i++) {
+                    const units = (maxUnitsForChart / steps) * i;
+                    chartLabels.push(units.toFixed(0));
+                    revenueData.push(precioVenta * units);
+                    fixedCostsData.push(annualFixedCosts);
+                    totalCostsData.push(annualFixedCosts + (costoVariableUnidad * units));
+                }
+                
+                // Llamar a la función para dibujar/actualizar el gráfico
+                updateBreakEvenChart(chartLabels, revenueData, fixedCostsData, totalCostsData);
+                // --- FIN CÁLCULO GRÁFICO ---
+
+
                 const years = ['Año 0'];
                 const revenues = [0];
                 const varCosts = [0];
@@ -328,6 +611,7 @@
                 const taxes = [0];
                 const netIncome = [0];
                 const cashFlows = [-initialInvestment];
+                const otherInvRowData = [0]; // Array para la fila de la tabla
 
                 for (let i = 1; i <= projectionYears; i++) {
                     years.push(`Año ${i}`);
@@ -344,10 +628,18 @@
                     taxes.push(currentTax);
                     const currentNetIncome = currentEBT - currentTax;
                     netIncome.push(currentNetIncome);
+
+                    // --- CÁLCULO DE FLUJO CON INVERSIONES ADICIONALES ---
+                    const otherInv = otherInvestmentsMap[i] || 0;
+                    otherInvRowData.push(otherInv); // Añadir al array de la fila
+                    
                     let currentCashFlow = currentNetIncome + depreciation;
                     if (i === projectionYears) {
                         currentCashFlow += salvageValue;
                     }
+                    currentCashFlow -= otherInv; // Restar la inversión adicional
+                    // --- FIN CÁLCULO ---
+
                     cashFlows.push(currentCashFlow);
                 }
 
@@ -370,6 +662,7 @@
                     { label: '(-) Impuestos', data: taxes, positive: false },
                     { label: '= Utilidad Neta', data: netIncome, isBold: true },
                     { label: '(+) Depreciación', data: depreciations, positive: true },
+                    { label: '(-) Inversiones Adicionales', data: otherInvRowData, positive: false },
                     { label: '= Flujo de Fondos', data: cashFlows, isBold: true, isFinal: true },
                 ];
                 tableBody.innerHTML = '';
@@ -428,4 +721,7 @@
     </script>
 </body>
 </html>
+
+
+
 
