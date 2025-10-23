@@ -1,5 +1,4 @@
 <!DOCTYPE html>
-<!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
@@ -7,6 +6,7 @@
     <title>Calculadora de Flujo de Fondos</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         body {
             font-family: 'Inter', sans-serif;
@@ -57,9 +57,10 @@
         }
         .indicator-card {
             background-color: #374151;
-            padding: 1rem;
+            padding: 1.5rem;
             border-radius: 0.5rem;
             text-align: center;
+            height: 100%;
             display: flex;
             flex-direction: column;
             justify-content: space-between;
@@ -68,23 +69,57 @@
             font-size: 0.875rem;
             color: #9ca3af;
             font-weight: 500;
+            margin-bottom: 0.5rem;
         }
         .indicator-value {
-            font-size: 1.5rem;
+            font-size: 1.75rem;
             font-weight: 700;
             color: #e5e7eb;
+            margin-bottom: 0.5rem;
         }
-        .positive {
-            color: #22c55e;
+        .indicator-description {
+            font-size: 0.75rem;
+            color: #9ca3af;
+            line-height: 1.4;
         }
-        .negative {
-            color: #ef4444;
+        /* Se eliminaron las clases .positive y .negative */
+        .tab-button {
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background-color 0.2s, color 0.2s;
+        }
+        .tab-button.active {
+            background-color: #3b82f6;
+            color: #ffffff;
+        }
+        .tab-button.inactive {
+            background-color: #374151;
+            color: #9ca3af;
+        }
+        .sticky-header th {
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+        .sticky-column {
+            position: sticky;
+            left: 0;
+            z-index: 20;
+        }
+        /* Asegura que el fondo de la celda sticky no sea transparente */
+        .sticky-column.bg-gray-800 {
+            background-color: #1f2937; 
+        }
+        .sticky-header .sticky-column {
+            z-index: 30; /* La esquina superior izquierda debe estar por encima de todo */
         }
     </style>
 </head>
 <body class="bg-gray-900 text-gray-200">
 
-    <div class="container mx-auto p-4 sm:p-6 lg:p-8 max-w-7xl">
+    <div class="container mx-auto p-4 sm:p-6 lg:p-8 max-w-full xl:max-w-screen-xl">
         <header class="text-center mb-10">
             <h1 class="text-3xl sm:text-4xl font-bold text-white">Calculadora de Flujo de Fondos</h1>
             <p class="text-gray-400 mt-2">Proyecta la rentabilidad de tu inversión y analiza su viabilidad.</p>
@@ -93,87 +128,87 @@
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
             <!-- Columna de Parámetros -->
             <aside id="parameters" class="lg:col-span-1 space-y-6">
+                
                 <div class="card">
                     <h2 class="text-xl font-semibold mb-4 text-white">Parámetros Iniciales</h2>
+                    
                     <div class="input-group">
                         <label for="initialInvestment" class="input-label">Inversión Inicial</label>
                         <input type="number" id="initialInvestment" class="input-field" value="8000">
                     </div>
 
-                    <!-- NUEVO TOGGLE DE CÁLCULO -->
                     <div class="input-group">
-                        <label for="calculationMode" class="input-label">Calcular automáticamente:</label>
-                        <select id="calculationMode" class="input-field">
-                            <option value="unidades" selected>Unidades (basado en Rendimiento)</option>
-                            <option value="rendimiento">Rendimiento (basado en Unidades)</option>
-                        </select>
+                        <label class="input-label">Periodo a Proyectar</label>
+                        <div class="flex space-x-2">
+                            <input type="number" id="projectionPeriod" class="input-field w-1/2" value="5" min="1" max="20">
+                            <select id="periodType" class="input-field w-1/2">
+                                <option value="years" selected>Años</option>
+                                <option value="months">Meses</option>
+                            </select>
+                        </div>
                     </div>
 
                     <div class="input-group">
-                        <label for="expectedReturn" class="input-label">Rendimiento Anual Esperado %</label>
-                        <input type="number" id="expectedReturn" class="input-field" value="15">
-                    </div>
-                    <div class="input-group">
-                        <label for="projectionPeriod" class="input-label">Periodo a Proyectar</label>
-                        <div class="flex items-center space-x-2">
-                            <input type="number" id="projectionPeriod" class="input-field flex-grow" value="5" min="1">
-                            <select id="projectionUnit" class="input-field">
-                                <option value="años" selected>Años</option>
-                                <option value="meses">Meses</option>
+                        <label class="input-label">Costos Fijos</label>
+                         <div class="flex space-x-2">
+                            <input type="number" id="fixedCosts" class="input-field w-1/2" value="10812">
+                            <select id="fixedCostsType" class="input-field w-1/2">
+                                <option value="monthly" selected>Mensuales</option>
+                                <option value="annual">Anuales</option>
                             </select>
                         </div>
-                    </div>
-                    <div class="input-group">
-                        <label for="costosFijos" class="input-label">Costos Fijos</label>
-                         <div class="flex items-center space-x-2">
-                            <input type="number" id="costosFijos" class="input-field flex-grow" value="10812">
-                             <select id="costosFijosUnit" class="input-field">
-                                <option value="mensuales" selected>Mensuales</option>
-                                <option value="anuales">Anuales</option>
-                            </select>
-                        </div>
-                    </div>
-                    <div class="input-group">
-                        <label for="costoVariableUnidad" class="input-label">Costo Variable por Unidad</label>
-                        <input type="number" id="costoVariableUnidad" class="input-field" value="7.25">
                     </div>
                 </div>
 
-                <!-- NUEVA SECCIÓN DE INVERSIONES ADICIONALES -->
-                <div class="card">
+                <div class="card" id="additionalInvestmentsCard">
                     <h2 class="text-xl font-semibold mb-4 text-white">Inversiones Adicionales</h2>
-                    <!-- NOTA DESCRIPTIVA AÑADIDA -->
                     <p class="text-sm text-gray-400 mb-4">
-                        Coloque aquí egresos como: nuevas inversiones para aumentar la productividad, pagos de préstamos, u otros costos relevantes.
+                        Nuevas inversiones para aumentar la productividad, pagos de préstamos, u otros egresos de capital.
                     </p>
-                    <div id="annualInvestmentsContainer" class="space-y-4">
-                        <!-- Los campos se generarán dinámicamente aquí -->
-                        <p class="text-sm text-gray-400">Ajuste el "Periodo a Proyectar" para ver los campos de inversión.</p>
+                    <div id="additionalInvestmentsContainer" class="space-y-3">
+                        <!-- Campos generados dinámicamente -->
                     </div>
                 </div>
 
                 <div class="card">
                      <h2 class="text-xl font-semibold mb-4 text-white">Ventas y Costos Unitarios</h2>
+                     
+                     <div class="input-group">
+                        <label for="calcMode" class="input-label">Modo de Cálculo</label>
+                        <select id="calcMode" class="input-field">
+                            <option value="units" selected>Calcular Unidades (basado en Rendimiento)</option>
+                            <option value="return">Calcular Rendimiento (basado en Unidades)</option>
+                        </select>
+                    </div>
+
                      <div class="input-group">
                         <label for="precioVenta" class="input-label">Precio de Venta por Unidad</label>
                         <input type="number" id="precioVenta" class="input-field" value="17">
                     </div>
+                    
+                    <div class="input-group">
+                        <label for="costoVariableUnidad" class="input-label">Costo Variable por Unidad</label>
+                        <input type="number" id="costoVariableUnidad" class="input-field" value="7.25">
+                    </div>
+
                     <div class="input-group">
                         <label for="unidadesVendidas" class="input-label">Unidades Vendidas (Año 1)</label>
-                        <input type="number" id="unidadesVendidas" class="input-field" value="23040">
-                         <p class="text-xs text-gray-500 mt-1" id="unidadesSubtext">Se calcula para alcanzar el rendimiento esperado.</p>
+                        <input type="number" id="unidadesVendidas" class="input-field" value="23040" readonly>
                     </div>
+
                     <div class="input-group">
-                        <label for="crecimientoVentas" class="input-label">Crecimiento Anual en Ventas %</label>
+                        <label for="expectedReturn" class="input-label">Rendimiento Anual Esperado %</label>
+                        <input type="number" id="expectedReturn" class="input-field" value="20">
+                    </div>
+
+                    <div class="input-group">
+                        <label for="crecimientoVentas" class="input-label">Crecimiento Anual en Unidades %</label>
                         <input type="number" id="crecimientoVentas" class="input-field" value="0">
                     </div>
                 </div>
+
                 <div class="card">
-                    <h2 class="text-xl font-semibold mb-4 text-white">Impuestos y Depreciación</h2>
-                    <div class="input-group">
-                        <label for="depreciation" class="input-label">Depreciación Anual</label>
-                        <input type="number" id="depreciation" class="input-field" value="30000"> <!-- 2500 * 12 -->
-                    </div>
+                    <h2 class="text-xl font-semibold mb-4 text-white">Impuestos</h2>
                     <div class="input-group">
                         <label for="taxRate" class="input-label">Tasa de Impuestos %</label>
                         <input type="number" id="taxRate" class="input-field" value="21">
@@ -185,54 +220,81 @@
             <main class="lg:col-span-2 space-y-8">
                 <div class="card">
                     <h2 class="text-xl font-semibold mb-4 text-white">Indicadores de Rendimiento</h2>
-                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                        <!-- El bloque <div> para el VAN ha sido eliminado -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
                         <div class="indicator-card">
-                             <div>
+                            <div>
                                 <h3 class="indicator-title">TIR (Tasa Interna de Retorno)</h3>
                                 <p id="tirResult" class="indicator-value">-</p>
                             </div>
-                            <p class="text-xs text-gray-400 mt-2 h-10">Rentabilidad anual promedio del proyecto.</p>
+                            <p class="indicator-description">Rentabilidad anual promedio del proyecto.</p>
                         </div>
                         <div class="indicator-card">
                             <div>
-                                <h3 class="indicator-title">ROI (Retorno Inversión)</h3>
+                                <h3 class="indicator-title">ROI (Retorno de Inversión)</h3>
                                 <p id="roiResult" class="indicator-value">-</p>
                             </div>
-                            <p class="text-xs text-gray-400 mt-2 h-10">Ganancia porcentual sobre la inversión.</p>
+                            <p class="indicator-description">Ganancia porcentual sobre la inversión total.</p>
                         </div>
                         <div class="indicator-card">
                             <div>
                                 <h3 class="indicator-title">Índice de Rentabilidad (IVP)</h3>
                                 <p id="ivpResult" class="indicator-value">-</p>
                             </div>
-                            <p class="text-xs text-gray-400 mt-2 h-10">Por cada $1 invertido, cuánto se genera. >1 es bueno.</p>
+                            <p class="indicator-description">Por cada $1 invertido, cuánto se genera. >1 es bueno.</p>
                         </div>
                         <div class="indicator-card">
-                             <div>
+                            <div>
                                 <h3 class="indicator-title">Período de Recupero</h3>
                                 <p id="paybackResult" class="indicator-value">-</p>
                             </div>
-                            <p class="text-xs text-gray-400 mt-2 h-10">Tiempo para recuperar la inversión inicial.</p>
+                            <p class="indicator-description">Tiempo para recuperar la inversión inicial.</p>
                         </div>
-                        <!-- BLOQUE ELIMINADO: Tasa de Descuento -->
-                        <!-- BLOQUE ELIMINADO: Valor de Recupero -->
                     </div>
                 </div>
+
                 <div class="card">
                     <h2 class="text-xl font-semibold mb-4 text-white">Flujo de Fondos Proyectado</h2>
-                    <div class="overflow-x-auto">
+                    <div class="overflow-x-auto max-h-96 relative">
                         <table class="w-full text-sm text-left text-gray-400">
-                            <thead class="text-xs text-gray-300 uppercase bg-gray-700">
+                            <thead class="text-xs text-gray-300 uppercase bg-gray-700 sticky-header">
                                 <tr>
-                                    <th scope="col" class="px-4 py-3">Concepto</th>
+                                    <th scope="col" class="px-4 py-3 sticky-column bg-gray-700">Concepto</th>
                                     <!-- Headers de años se generan dinámicamente -->
                                 </tr>
                             </thead>
-                            <tbody id="cashFlowTableBody">
+                            <tbody id="cashFlowTableBody" class="bg-gray-800">
                                 <!-- Filas de la tabla se generan dinámicamente -->
                             </tbody>
                         </table>
+                    </div>
+                </div>
+
+                <!-- NUEVA TARJETA: Proyección de Unidades -->
+                <div class="card">
+                    <h2 class="text-xl font-semibold mb-4 text-white">Proyección de Unidades Vendidas</h2>
+                    <div class="overflow-x-auto max-h-96 relative">
+                        <table class="w-full text-sm text-left text-gray-400">
+                            <thead class="text-xs text-gray-300 uppercase bg-gray-700 sticky-header">
+                                <tr>
+                                    <th scope="col" class="px-4 py-3 sticky-column bg-gray-700">Año</th>
+                                    <th scope="col" class="px-4 py-3 text-right">Unidades Anuales</th>
+                                    <th scope="col" class="px-4 py-3 text-right">Unidades Mensuales (Prom.)</th>
+                                </tr>
+                            </thead>
+                            <tbody id="unitsProjectionTableBody" class="bg-gray-800">
+                                <!-- Filas generadas por JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h2 class="text-xl font-semibold mb-4 text-white">Gráfico de Punto de Equilibrio (Operativo)</h2>
+                    <p class="text-sm text-gray-400 mb-4">
+                        Muestra las unidades donde los ingresos cubren los costos fijos y variables del primer año.
+                    </p>
+                    <div class="bg-gray-800 p-4 rounded-lg">
+                        <canvas id="breakevenChart"></canvas>
                     </div>
                 </div>
             </main>
@@ -242,11 +304,19 @@
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             const paramsContainer = document.getElementById('parameters');
-            // NUEVOS ELEMENTOS
-            const annualInvestmentsContainer = document.getElementById('annualInvestmentsContainer');
             const projectionPeriodEl = document.getElementById('projectionPeriod');
-            const projectionUnitEl = document.getElementById('projectionUnit');
+            const periodTypeEl = document.getElementById('periodType');
+            const additionalInvestmentsContainer = document.getElementById('additionalInvestmentsContainer');
             
+            const calcModeEl = document.getElementById('calcMode');
+            const unidadesVendidasEl = document.getElementById('unidadesVendidas');
+            const expectedReturnEl = document.getElementById('expectedReturn');
+
+            let breakevenChartInstance = null; // Para guardar la instancia del gráfico
+            let calcMode = 'units'; // Modo inicial
+
+            // --- FUNCIONES DE CÁLCULO FINANCIERO ---
+
             const formatCurrency = (value) => {
                 if (isNaN(value)) return '$ 0';
                 return value.toLocaleString('es-AR', {
@@ -268,15 +338,39 @@
 
             const calculateTIR = (cashFlows, maxIterations = 100, tolerance = 1e-6) => {
                 let lowerBound = -0.99;
-                let upperBound = 20.0; // Aumentado de 1.0 a 20.0 (2000%) para capturar TIRs muy altas
+                let upperBound = 20.0; // 2000%
                 let tir = 0;
+
+                // Verificar si hay al menos un cambio de signo
+                let positiveFlow = false;
+                let negativeFlow = false;
+                for (const flow of cashFlows) {
+                    if (flow > 0) positiveFlow = true;
+                    if (flow < 0) negativeFlow = true;
+                }
+                if (!positiveFlow || !negativeFlow) return NaN; // No hay TIR
+
                 for (let i = 0; i < maxIterations; i++) {
                     tir = (lowerBound + upperBound) / 2;
-                    const van = calculateVAN(cashFlows, tir * 100);
+                    if (Math.abs(upperBound - lowerBound) < tolerance) {
+                        return tir * 100;
+                    }
+                    
+                    let van = 0;
+                    for (let j = 0; j < cashFlows.length; j++) {
+                        van += cashFlows[j] / Math.pow(1 + tir, j);
+                    }
+
                     if (Math.abs(van) < tolerance) {
                         return tir * 100;
                     }
-                    if (calculateVAN(cashFlows, lowerBound * 100) * van < 0) {
+
+                    let vanLower = 0;
+                    for (let j = 0; j < cashFlows.length; j++) {
+                        vanLower += cashFlows[j] / Math.pow(1 + lowerBound, j);
+                    }
+                    
+                    if (vanLower * van < 0) {
                         upperBound = tir;
                     } else {
                         lowerBound = tir;
@@ -286,142 +380,210 @@
             };
 
             const calculatePayback = (cashFlows) => {
-                let cumulativeCashFlow = cashFlows[0];
-                if (cumulativeCashFlow >= 0) return 'Inmediato';
+                const initialInvestment = -cashFlows[0];
+                if (initialInvestment <= 0) return 0;
+
+                let cumulativeFlow = 0;
                 for (let i = 1; i < cashFlows.length; i++) {
-                    const lastCumulative = cumulativeCashFlow;
-                    cumulativeCashFlow += cashFlows[i];
-                    if (cumulativeCashFlow > 0) {
-                        const yearBeforeRecovery = i - 1;
-                        const fractionOfYear = Math.abs(lastCumulative) / cashFlows[i];
-                        const paybackPeriod = yearBeforeRecovery + fractionOfYear;
-                        return `${paybackPeriod.toFixed(2)} años`;
+                    cumulativeFlow += cashFlows[i];
+                    if (cumulativeFlow >= initialInvestment) {
+                        // Cálculo de fracción de año
+                        const flowBefore = cumulativeFlow - cashFlows[i];
+                        const needed = initialInvestment - flowBefore;
+                        const fraction = needed / cashFlows[i];
+                        return (i - 1) + fraction;
                     }
                 }
-                return 'Nunca';
+                return NaN; // No se recupera en el período
             };
 
-            // NUEVA FUNCIÓN para generar campos de inversión
-            const updateAnnualInvestmentsFields = () => {
-                const period = parseInt(projectionPeriodEl.value) || 0;
-                const unit = projectionUnitEl.value;
-                const totalYears = unit === 'años' ? period : Math.ceil(period / 12);
+            // --- LÓGICA DE LA APLICACIÓN ---
 
-                annualInvestmentsContainer.innerHTML = ''; // Limpiar campos anteriores
-
-                if (totalYears <= 0) {
-                     annualInvestmentsContainer.innerHTML = '<p class="text-sm text-gray-400">Ajuste el "Periodo a Proyectar" para ver los campos de inversión.</p>';
-                     return;
-                }
-
-                for (let i = 1; i <= totalYears; i++) {
-                    const div = document.createElement('div');
-                    div.className = 'input-group';
-                    div.innerHTML = `
-                        <label for="investment_year_${i}" class="input-label">Inversión Año ${i}</label>
-                        <input type="number" id="investment_year_${i}" class="input-field annual-investment-input" value="0" placeholder="0">
-                    `;
-                    annualInvestmentsContainer.appendChild(div);
-                }
-            };
-
-            const calculateAndDisplay = () => {
+            const getParams = () => {
                 const initialInvestment = parseFloat(document.getElementById('initialInvestment').value) || 0;
                 const projectionPeriod = parseInt(document.getElementById('projectionPeriod').value) || 5;
-                const projectionUnit = document.getElementById('projectionUnit').value;
-                const projectionYears = projectionUnit === 'años' ? projectionPeriod : Math.ceil(projectionPeriod / 12);
+                const periodType = document.getElementById('periodType').value;
+                const fixedCosts = parseFloat(document.getElementById('fixedCosts').value) || 0;
+                const fixedCostsType = document.getElementById('fixedCostsType').value;
                 const precioVenta = parseFloat(document.getElementById('precioVenta').value) || 0;
-                const crecimientoVentas = parseFloat(document.getElementById('crecimientoVentas').value) / 100 || 0;
                 const costoVariableUnidad = parseFloat(document.getElementById('costoVariableUnidad').value) || 0;
-                const costosFijos = parseFloat(document.getElementById('costosFijos').value) || 0;
-                const costosFijosUnit = document.getElementById('costosFijosUnit').value;
-                const depreciation = parseFloat(document.getElementById('depreciation').value) || 0;
+                const crecimientoVentas = parseFloat(document.getElementById('crecimientoVentas').value) / 100 || 0;
                 const taxRate = parseFloat(document.getElementById('taxRate').value) / 100 || 0;
-                const annualFixedCosts = costosFijosUnit === 'mensuales' ? costosFijos * 12 : costosFijos;
                 
-                // --- NUEVA LÓGICA DE CÁLCULO ---
-                const calculationMode = document.getElementById('calculationMode').value;
-                const expectedReturnEl = document.getElementById('expectedReturn');
-                const unidadesVendidasEl = document.getElementById('unidadesVendidas');
-                const marginPerUnit = precioVenta - costoVariableUnidad;
+                const expectedReturn = parseFloat(expectedReturnEl.value) / 100 || 0;
+                const unidadesVendidas = parseFloat(unidadesVendidasEl.value) || 0;
 
-                let expectedReturn, unidadesVendidas;
+                const discountRate = 25; // Tasa de descuento fija
+                const salvageValue = 1000; // Valor de recupero fijo
 
-                if (calculationMode === 'unidades') {
-                    // Calcular Unidades basado en Rendimiento
-                    expectedReturn = parseFloat(expectedReturnEl.value) / 100 || 0;
-                    const targetNetIncome = initialInvestment * expectedReturn;
-                    let requiredUnits = 0;
-                    if (1 - taxRate > 0 && marginPerUnit > 0) {
-                        const targetEBT = targetNetIncome / (1 - taxRate);
-                        requiredUnits = (targetEBT + annualFixedCosts + depreciation) / marginPerUnit;
-                    }
-                    unidadesVendidasEl.value = requiredUnits.toFixed(0);
-                    unidadesVendidas = requiredUnits;
-                } else {
-                    // Calcular Rendimiento basado en Unidades
-                    unidadesVendidas = parseFloat(unidadesVendidasEl.value) || 0;
-                    const annualEBT = (unidadesVendidas * marginPerUnit) - annualFixedCosts - depreciation;
-                    const annualNetIncome = annualEBT * (1 - taxRate);
-                    let calculatedReturn = 0;
-                    if (initialInvestment > 0) {
-                        calculatedReturn = (annualNetIncome / initialInvestment) * 100;
-                    }
-                    expectedReturnEl.value = calculatedReturn.toFixed(2);
-                    expectedReturn = calculatedReturn / 100;
+                // Ajustar periodos y costos fijos
+                const projectionYears = periodType === 'years' ? projectionPeriod : Math.ceil(projectionPeriod / 12);
+                const annualFixedCosts = fixedCostsType === 'annual' ? fixedCosts : fixedCosts * 12;
+
+                // Leer inversiones adicionales
+                const additionalInvestments = [0]; // Año 0 no tiene
+                for (let i = 1; i <= projectionYears; i++) {
+                    const input = document.getElementById(`inv_year_${i}`);
+                    additionalInvestments.push(parseFloat(input.value) || 0);
                 }
-                // --- FIN NUEVA LÓGICA ---
                 
-                // --- LEER INVERSIONES ADICIONALES ---
-                const annualInvestmentsInputs = document.querySelectorAll('.annual-investment-input');
-                const annualInvestmentsValues = Array.from(annualInvestmentsInputs).map(input => parseFloat(input.value) || 0);
-
-                const discountRate = 25; 
-                const salvageValue = 1000;
-                
-                const years = ['Año 0'];
+                return {
+                    initialInvestment, projectionYears, precioVenta, costoVariableUnidad,
+                    crecimientoVentas, taxRate, discountRate, salvageValue,
+                    annualFixedCosts, additionalInvestments, expectedReturn, unidadesVendidas
+                };
+            };
+            
+            // Función para generar un flujo de fondos basado en un NÚMERO DE UNIDADES
+            const generateCashFlows = (baseUnits, params) => {
+                const cashFlows = [-params.initialInvestment];
                 const revenues = [0];
                 const varCosts = [0];
                 const fixCosts = [0];
-                const depreciations = [0];
-                const annualInvestments = [0]; // Nuevo array
                 const ebt = [0];
                 const taxes = [0];
                 const netIncome = [0];
-                const cashFlows = [-initialInvestment];
-
-                for (let i = 1; i <= projectionYears; i++) {
-                    years.push(`Año ${i}`);
-                    const currentUnits = unidadesVendidas * Math.pow(1 + crecimientoVentas, i - 1);
-                    const currentRevenue = currentUnits * precioVenta;
-                    const currentVarCosts = currentUnits * costoVariableUnidad;
-                    const currentAnnualInvestment = annualInvestmentsValues[i - 1] || 0; // Obtener inversión del año
+                const additionalInv = [0]; // Mostrando la inv. adicional
+                
+                for (let i = 1; i <= params.projectionYears; i++) {
+                    const currentUnits = baseUnits * Math.pow(1 + params.crecimientoVentas, i - 1);
+                    const currentRevenue = currentUnits * params.precioVenta;
+                    const currentVarCosts = currentUnits * params.costoVariableUnidad;
                     
                     revenues.push(currentRevenue);
                     varCosts.push(currentVarCosts);
-                    fixCosts.push(annualFixedCosts);
-                    depreciations.push(depreciation);
-                    annualInvestments.push(currentAnnualInvestment); // Guardar en array
+                    fixCosts.push(params.annualFixedCosts);
 
-                    const currentEBT = currentRevenue - currentVarCosts - annualFixedCosts - depreciation;
+                    const currentEBT = currentRevenue - currentVarCosts - params.annualFixedCosts;
                     ebt.push(currentEBT);
-                    const currentTax = currentEBT > 0 ? currentEBT * taxRate : 0;
+
+                    const currentTax = currentEBT > 0 ? currentEBT * params.taxRate : 0;
                     taxes.push(currentTax);
+
                     const currentNetIncome = currentEBT - currentTax;
                     netIncome.push(currentNetIncome);
                     
-                    // MODIFICADO: Restar inversión adicional
-                    let currentCashFlow = currentNetIncome + depreciation - currentAnnualInvestment;
+                    const currentAdditionalInv = params.additionalInvestments[i] || 0;
+                    additionalInv.push(-currentAdditionalInv); // Negativo en la tabla
+
+                    let currentCashFlow = currentNetIncome - currentAdditionalInv;
                     
-                    if (i === projectionYears) {
-                        currentCashFlow += salvageValue;
+                    if (i === params.projectionYears) {
+                        currentCashFlow += params.salvageValue;
                     }
                     cashFlows.push(currentCashFlow);
                 }
 
+                // Devolver también los datos para la tabla
+                return { 
+                    cashFlows, revenues, varCosts, fixCosts, 
+                    ebt, taxes, netIncome, additionalInv 
+                };
+            };
+
+            // NUEVA LÓGICA: Encontrar unidades que logren el "Rendimiento Anual Esperado" en todo el período
+            const calculateUnitsForReturn = (params) => {
+                if (calcMode !== 'units') return params.unidadesVendidas;
+                if (params.expectedReturn === 0) return 0;
+
+                const targetAnnualizedROI = params.expectedReturn; // e.g., 0.20
+                let lowUnits = 0;
+                let highUnits = 1000000; // Un rango amplio de unidades
+                let midUnits = 0;
+
+                for (let i = 0; i < 50; i++) { // Búsqueda por bisección
+                    midUnits = (lowUnits + highUnits) / 2;
+                    if (highUnits - lowUnits < 0.01) break; // Precisión suficiente
+
+                    const { cashFlows, ...tableData } = generateCashFlows(midUnits, params);
+                    
+                    const totalNetIncome = tableData.netIncome.slice(1).reduce((acc, val) => acc + val, 0);
+                    const totalInvestment = params.initialInvestment + params.additionalInvestments.slice(1).reduce((acc, val) => acc + val, 0);
+
+                    if (totalInvestment <= 0) {
+                        lowUnits = midUnits; // No hay inversión, pero necesitamos más unidades para un retorno positivo
+                        continue;
+                    }
+
+                    const totalROI = totalNetIncome / totalInvestment;
+                    
+                    // Manejar ROI total negativo (Math.pow no funciona con base negativa)
+                    let currentAnnualizedROI;
+                    if (1 + totalROI > 0) {
+                        currentAnnualizedROI = (Math.pow(1 + totalROI, 1 / params.projectionYears) - 1);
+                    } else {
+                        // Si el ROI total es < -100%, es un gran negativo
+                        currentAnnualizedROI = -1; // Asignar un valor bajo
+                    }
+
+                    const diff = currentAnnualizedROI - targetAnnualizedROI;
+
+                    if (Math.abs(diff) < 0.001) {
+                        break; // Encontrado
+                    } else if (diff > 0) {
+                        highUnits = midUnits; // El retorno es muy alto, bajar unidades
+                    } else {
+                        lowUnits = midUnits; // El retorno es muy bajo, subir unidades
+                    }
+                }
+                return isFinite(midUnits) ? midUnits : 0;
+            };
+
+            // Función para encontrar el rendimiento basado en unidades
+            // NUEVA LÓGICA: Calcular rendimiento anualizado promedio
+            const calculateReturnFromUnits = (params, tableData) => {
+                if (calcMode !== 'return') return params.expectedReturn * 100;
+
+                // Usamos la utilidad neta PROMEDIO de todo el período
+                const totalNetIncome = tableData.netIncome.slice(1).reduce((acc, val) => acc + val, 0);
+                const totalInvestment = params.initialInvestment + params.additionalInvestments.slice(1).reduce((acc, val) => acc + val, 0);
+
+                if (totalInvestment <= 0 || params.projectionYears === 0) return 0;
+                
+                const totalROI = totalNetIncome / totalInvestment;
+                
+                let annualizedROI;
+                if (1 + totalROI > 0) {
+                     annualizedROI = (Math.pow(1 + totalROI, 1 / params.projectionYears) - 1) * 100;
+                } else {
+                    // Si el ROI total es < -100%, no se puede anualizar, mostrar el total
+                     annualizedROI = totalROI * 100;
+                }
+
+                return isFinite(annualizedROI) ? annualizedROI : 0;
+            };
+
+
+            const calculateAndDisplay = () => {
+                const params = getParams();
+                
+                let unitsToUse = 0;
+
+                if (calcMode === 'units') {
+                    unitsToUse = calculateUnitsForReturn(params);
+                    unidadesVendidasEl.value = unitsToUse.toFixed(0);
+                } else {
+                    unitsToUse = params.unidadesVendidas;
+                }
+
+                const { cashFlows, ...tableData } = generateCashFlows(unitsToUse, params);
+
+                if (calcMode === 'return') {
+                    const calculatedReturn = calculateReturnFromUnits(params, tableData);
+                    expectedReturnEl.value = calculatedReturn.toFixed(2);
+                }
+
+
+                // --- 2. Generar Tabla ---
                 const tableBody = document.getElementById('cashFlowTableBody');
                 const tableHead = document.querySelector('#cashFlowTableBody').previousElementSibling.querySelector('tr');
-                tableHead.innerHTML = '<th scope="col" class="px-4 py-3 sticky left-0 bg-gray-700 z-10">Concepto</th>';
+                
+                const years = ['Año 0'];
+                for (let i = 1; i <= params.projectionYears; i++) {
+                    years.push(`Año ${i}`);
+                }
+
+                tableHead.innerHTML = '<th scope="col" class="px-4 py-3 sticky-column bg-gray-700">Concepto</th>';
                 years.forEach(year => {
                     const th = document.createElement('th');
                     th.scope = 'col';
@@ -429,126 +591,301 @@
                     th.textContent = year;
                     tableHead.appendChild(th);
                 });
+
                 const rows = [
-                    { label: 'Ingresos por Ventas', data: revenues, positive: true },
-                    { label: '(-) Costos Variables', data: varCosts, positive: false },
-                    { label: '(-) Costos Fijos', data: fixCosts, positive: false },
-                    { label: '(-) Depreciación', data: depreciations, positive: false },
-                    { label: '= Utilidad antes de Impuestos', data: ebt, isBold: true },
-                    { label: '(-) Impuestos', data: taxes, positive: false },
-                    { label: '= Utilidad Neta', data: netIncome, isBold: true },
-                    { label: '(+) Depreciación', data: depreciations, positive: true },
-                    { label: '(-) Inversiones Adicionales', data: annualInvestments, positive: false }, // NUEVA FILA
+                    { label: 'Ingresos por Ventas', data: tableData.revenues },
+                    { label: '(-) Costos Variables', data: tableData.varCosts },
+                    { label: '(-) Costos Fijos', data: tableData.fixCosts },
+                    { label: '= Utilidad antes de Impuestos', data: tableData.ebt, isBold: true },
+                    { label: '(-) Impuestos', data: tableData.taxes },
+                    { label: '= Utilidad Neta', data: tableData.netIncome, isBold: true },
+                    { label: '(-) Inversiones Adicionales', data: tableData.additionalInv },
                     { label: '= Flujo de Fondos', data: cashFlows, isBold: true, isFinal: true },
                 ];
+                
                 tableBody.innerHTML = '';
                 rows.forEach(rowData => {
                     const tr = document.createElement('tr');
                     tr.className = 'border-b border-gray-700';
-                    if (rowData.isFinal) tr.className = 'bg-gray-800 font-semibold text-white';
-                    let rowHtml = `<th scope="row" class="px-4 py-3 font-medium whitespace-nowrap sticky left-0 bg-gray-800 z-10 ${rowData.isBold ? 'font-bold text-white' : ''}">${rowData.label}</th>`;
+                    if (rowData.isFinal) {
+                        tr.className = 'bg-gray-600 font-semibold text-white';
+                    }
+                     
+                    let rowHtml = `<th scope="row" class="px-4 py-3 font-medium whitespace-nowrap sticky-column bg-gray-800 ${rowData.isBold ? 'font-bold text-white' : ''}">${rowData.label}</th>`;
+                    
                     rowData.data.forEach(value => {
-                       const valueClass = value > 0 ? 'text-green-400' : value < 0 ? 'text-red-400' : '';
+                       let valueClass = '';
+                       if (value > 0) valueClass = 'text-green-400';
+                       if (value < 0) valueClass = 'text-red-400';
                        rowHtml += `<td class="px-4 py-3 text-right ${valueClass}">${formatCurrency(value)}</td>`;
                     });
                     tr.innerHTML = rowHtml;
                     tableBody.appendChild(tr);
                 });
 
-                const vanResult = calculateVAN(cashFlows, discountRate);
-                const tirResult = calculateTIR(cashFlows);
-                const paybackResult = calculatePayback(cashFlows);
 
-                // --- CÁLCULOS MEJORADOS PARA ROI y IVP ---
-                // Calcular la inversión total (nominal y valor presente)
-                const totalInvestment = initialInvestment + annualInvestmentsValues.reduce((acc, val) => acc + val, 0);
-                
-                let pvInvestments = initialInvestment;
-                for (let i = 0; i < annualInvestmentsValues.length; i++) {
-                    if (i < projectionYears) { // Solo contar inversiones dentro del período de proyección
-                        pvInvestments += annualInvestmentsValues[i] / Math.pow(1 + (discountRate / 100), i + 1);
-                    }
+                // --- 2b. Generar Tabla de Proyección de Unidades ---
+                const unitsTableBody = document.getElementById('unitsProjectionTableBody');
+                unitsTableBody.innerHTML = ''; // Limpiar tabla
+
+                for (let i = 1; i <= params.projectionYears; i++) {
+                    const currentUnits = unitsToUse * Math.pow(1 + params.crecimientoVentas, i - 1);
+                    const monthlyUnits = currentUnits / 12;
+
+                    const tr = document.createElement('tr');
+                    tr.className = 'border-b border-gray-700';
+                    
+                    let rowHtml = `<th scope="row" class="px-4 py-3 font-medium whitespace-nowrap sticky-column bg-gray-800">Año ${i}</th>`;
+                    rowHtml += `<td class="px-4 py-3 text-right">${currentUnits.toFixed(0)}</td>`;
+                    rowHtml += `<td class="px-4 py-3 text-right">${monthlyUnits.toFixed(0)}</td>`;
+                    
+                    tr.innerHTML = rowHtml;
+                    unitsTableBody.appendChild(tr);
                 }
 
-                const ivpResult = pvInvestments > 0 ? (vanResult + pvInvestments) / pvInvestments : 0;
-                const totalNetIncome = netIncome.slice(1).reduce((acc, val) => acc + val, 0);
-                const roiResult = totalInvestment > 0 ? (totalNetIncome / totalInvestment) * 100 : 0;
-                
-                // Las 3 líneas de código que actualizaban el elemento vanResult han sido eliminadas
 
+                // --- 3. Calcular y Mostrar Indicadores (Protegidos) ---
+                
+                // TIR
                 const tirElement = document.getElementById('tirResult');
-                if (isNaN(tirResult)) {
-                    tirElement.textContent = 'N/A';
-                    tirElement.className = 'indicator-value';
-                } else {
-                    tirElement.textContent = `${tirResult.toFixed(2)}%`;
-                    tirElement.className = `indicator-value ${tirResult >= discountRate ? 'positive' : 'negative'}`;
+                try {
+                    const tirResult = calculateTIR(cashFlows);
+                    if (isNaN(tirResult)) {
+                        tirElement.textContent = 'N/A';
+                    } else {
+                        tirElement.textContent = `${tirResult.toFixed(2)}%`;
+                    }
+                    tirElement.className = 'indicator-value'; // Siempre blanco
+                } catch (e) {
+                    console.error("Error calculating TIR:", e);
+                    tirElement.textContent = 'Error';
+                    tirElement.className = 'indicator-value'; // Siempre blanco
                 }
 
+                // ROI
                 const roiElement = document.getElementById('roiResult');
-                roiElement.textContent = `${roiResult.toFixed(2)}%`;
-                roiElement.className = `indicator-value ${roiResult >= 0 ? 'positive' : 'negative'}`;
+                try {
+                    const totalNetIncome = tableData.netIncome.slice(1).reduce((acc, val) => acc + val, 0);
+                    const totalInvestment = params.initialInvestment + params.additionalInvestments.slice(1).reduce((acc, val) => acc + val, 0);
+                    let roiResult = 0;
+                    if (totalInvestment > 0) {
+                        roiResult = (totalNetIncome / totalInvestment) * 100;
+                    }
+                    roiElement.textContent = `${roiResult.toFixed(2)}%`;
+                    roiElement.className = 'indicator-value'; // Siempre blanco
+                } catch (e) {
+                    console.error("Error calculating ROI:", e);
+                    roiElement.textContent = 'Error';
+                    roiElement.className = 'indicator-value'; // Siempre blanco
+                }
 
+                // IVP
                 const ivpElement = document.getElementById('ivpResult');
-                ivpElement.textContent = ivpResult.toFixed(2);
-                ivpElement.className = `indicator-value ${ivpResult >= 1 ? 'positive' : 'negative'}`;
+                try {
+                    const vanResult = calculateVAN(cashFlows, params.discountRate);
+                    const totalInvestment = params.initialInvestment + params.additionalInvestments.slice(1).reduce((acc, val) => acc + val, 0);
+                    let ivpResult = 0;
+                    if (totalInvestment > 0) {
+                        ivpResult = (vanResult + totalInvestment) / totalInvestment;
+                    }
+                    ivpElement.textContent = ivpResult.toFixed(2);
+                    ivpElement.className = 'indicator-value'; // Siempre blanco
+                } catch (e) {
+                    console.error("Error calculating IVP:", e);
+                    ivpElement.textContent = 'Error';
+                    ivpElement.className = 'indicator-value'; // Siempre blanco
+                }
                 
+                // Período de Recupero
                 const paybackElement = document.getElementById('paybackResult');
-                paybackElement.textContent = paybackResult;
-                // LÓGICA DE COLOR AÑADIDA
-                paybackElement.className = `indicator-value ${paybackResult === 'Nunca' ? 'negative' : 'positive'}`;
+                try {
+                    const paybackResult = calculatePayback(cashFlows);
+                    if (isNaN(paybackResult)) {
+                        paybackElement.textContent = 'Nunca';
+                    } else {
+                        paybackElement.textContent = `${paybackResult.toFixed(2)} años`;
+                    }
+                    paybackElement.className = 'indicator-value'; // Siempre blanco
+                } catch (e) {
+                    console.error("Error calculating Payback:", e);
+                    paybackElement.textContent = 'Error';
+                    paybackElement.className = 'indicator-value'; // Siempre blanco
+                }
 
-                // LÍNEAS ELIMINADAS
+                // --- 4. Actualizar Gráfico ---
+                updateBreakevenChart(unitsToUse);
             };
             
-            const calculationModeEl = document.getElementById('calculationMode');
-            const expectedReturnEl = document.getElementById('expectedReturn');
-            const unidadesVendidasEl = document.getElementById('unidadesVendidas');
-            const unidadesSubtext = document.getElementById('unidadesSubtext');
+            // --- FUNCIONES DE UI ---
 
-            const updateCalculationMode = () => {
-                if (calculationModeEl.value === 'unidades') {
-                    expectedReturnEl.readOnly = false;
-                    unidadesVendidasEl.readOnly = true;
-                    unidadesSubtext.textContent = "Se calcula para alcanzar el rendimiento esperado.";
-                } else { // 'rendimiento'
-                    expectedReturnEl.readOnly = true;
-                    unidadesVendidasEl.readOnly = false;
-                    unidadesSubtext.textContent = "Ingrese unidades para calcular el rendimiento.";
+            const updateAdditionalInvestments = () => {
+                const projectionPeriod = parseInt(projectionPeriodEl.value) || 5;
+                const periodType = periodTypeEl.value;
+                const years = periodType === 'years' ? projectionPeriod : Math.ceil(projectionPeriod / 12);
+                
+                additionalInvestmentsContainer.innerHTML = '';
+                for (let i = 1; i <= years; i++) {
+                    const div = document.createElement('div');
+                    div.className = 'input-group flex items-center space-x-2';
+                    div.innerHTML = `
+                        <label for="inv_year_${i}" class="input-label mb-0 w-1/3">Año ${i}</label>
+                        <input type="number" id="inv_year_${i}" class="input-field w-2/3" value="0">
+                    `;
+                    additionalInvestmentsContainer.appendChild(div);
                 }
             };
-
-            calculationModeEl.addEventListener('change', () => {
-                updateCalculationMode();
-                calculateAndDisplay(); // Recalcular al cambiar de modo
-            });
             
+            const updateBreakevenChart = (breakevenUnits) => {
+                const params = getParams();
+                const units = parseFloat(breakevenUnits);
+                
+                if (isNaN(units) || units < 0) return;
+
+                const maxUnits = Math.max(units * 2, 1000); // Graficar hasta el doble del punto de equilibrio
+                const labels = [];
+                const revenueData = [];
+                const totalCostsData = [];
+                const fixedCostsData = [];
+
+                for (let u = 0; u <= maxUnits; u += maxUnits / 10) {
+                    const uInt = Math.round(u);
+                    labels.push(uInt);
+                    revenueData.push(uInt * params.precioVenta);
+                    totalCostsData.push(params.annualFixedCosts + (uInt * params.costoVariableUnidad));
+                    fixedCostsData.push(params.annualFixedCosts);
+                }
+
+                const ctx = document.getElementById('breakevenChart').getContext('2d');
+                if (breakevenChartInstance) {
+                    breakevenChartInstance.destroy();
+                }
+                
+                breakevenChartInstance = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: labels,
+                        datasets: [
+                            {
+                                label: 'Ingresos Totales',
+                                data: revenueData,
+                                borderColor: '#22c55e',
+                                backgroundColor: 'rgba(34, 197, 94, 0.1)',
+                                borderWidth: 2,
+                                fill: false,
+                                tension: 0.1
+                            },
+                            {
+                                label: 'Costos Totales',
+                                data: totalCostsData,
+                                borderColor: '#ef4444',
+                                backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                                borderWidth: 2,
+                                fill: false,
+                                tension: 0.1
+                            },
+                            {
+                                label: 'Costos Fijos',
+                                data: fixedCostsData,
+                                borderColor: '#6b7280',
+                                borderWidth: 2,
+                                borderDash: [5, 5],
+                                fill: false,
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            title: {
+                                display: true,
+                                text: `Punto de Equilibrio: ${Math.round(params.annualFixedCosts / (params.precioVenta - params.costoVariableUnidad))} unidades`,
+                                color: '#e5e7eb',
+                                font: { size: 16 }
+                            },
+                            tooltip: {
+                                mode: 'index',
+                                intersect: false,
+                                callbacks: {
+                                    label: function(context) {
+                                        let label = context.dataset.label || '';
+                                        if (label) {
+                                            label += ': ';
+                                        }
+                                        label += formatCurrency(context.parsed.y);
+                                        return label;
+                                    }
+                                }
+                            },
+                            legend: {
+                                labels: {
+                                    color: '#9ca3af'
+                                }
+                            }
+                        },
+                        scales: {
+                            x: {
+                                title: {
+                                    display: true,
+                                    text: 'Unidades Vendidas',
+                                    color: '#9ca3af'
+                                },
+                                grid: {
+                                    color: 'rgba(255, 255, 255, 0.1)'
+                                },
+                                ticks: {
+                                    color: '#9ca3af'
+                                }
+                            },
+                            y: {
+                                title: {
+                                    display: true,
+                                    text: 'Monto ($)',
+                                    color: '#9ca3af'
+                                },
+                                grid: {
+                                    color: 'rgba(255, 255, 255, 0.1)'
+                                },
+                                ticks: {
+                                    color: '#9ca3af',
+                                    callback: function(value) {
+                                        return formatCurrency(value);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            };
+
+            const toggleMode = () => {
+                calcMode = calcModeEl.value;
+                if (calcMode === 'units') {
+                    unidadesVendidasEl.readOnly = true;
+                    expectedReturnEl.readOnly = false;
+                } else {
+                    unidadesVendidasEl.readOnly = false;
+                    expectedReturnEl.readOnly = true;
+                }
+                // ¡¡¡CORRECCIÓN: Añadir esta línea!!!
+                calculateAndDisplay(); 
+            };
+
+            // --- INICIALIZACIÓN Y EVENTOS ---
+
+            // Recalcular todo cuando cualquier input cambie
             paramsContainer.addEventListener('input', calculateAndDisplay);
 
-            // NUEVOS LISTENERS para campos dinámicos
-            projectionPeriodEl.addEventListener('input', () => {
-                updateAnnualInvestmentsFields();
-                // calculateAndDisplay() se disparará por el listener de paramsContainer
-            });
+            // Eventos específicos para actualizar campos dinámicos
+            projectionPeriodEl.addEventListener('input', updateAdditionalInvestments);
+            periodTypeEl.addEventListener('change', updateAdditionalInvestments);
+            calcModeEl.addEventListener('change', toggleMode);
 
-            projectionUnitEl.addEventListener('change', () => {
-                updateAnnualInvestmentsFields();
-                calculateAndDisplay(); // Necesario porque 'change' no dispara 'input'
-            });
-            
-            // LLAMADAS INICIALES
-            updateAnnualInvestmentsFields(); // Crear campos al cargar
-            updateCalculationMode(); // Establecer estado inicial del toggle
-            calculateAndDisplay(); // Calcular al cargar la página
+            // Inicializar campos dinámicos y calcular al cargar
+            updateAdditionalInvestments();
+            toggleMode(); // Llama a toggleMode para setear el estado inicial
+            calculateAndDisplay();
         });
     </script>
 </body>
 </html>
-
-
-
-
-
-
-
-
